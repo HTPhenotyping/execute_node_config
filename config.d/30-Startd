@@ -1,0 +1,11 @@
+use ROLE : Execute
+use FEATURE : PartitionableSlot
+
+# Jobs must have IS_TRANSFER_JOB = true
+START = TARGET.IS_TRANSFER_JOB
+
+# Jobs should target UniqueName
+STARTD_ATTRS = $(STARTD_ATTRS), UniqueName
+
+# Jobs may not run as owner
+STARTER_ALLOW_RUNAS_OWNER = False
