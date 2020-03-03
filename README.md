@@ -51,7 +51,7 @@ Then:
 
 ### On execute node
 
-    scp $(condor_config_val CONDOR_HOST):/etc/condor/.created_tokens/STARTD_MyNode0001.key /etc/condor/tokens.d/
+    scp $(condor_config_val CONDOR_HOST):/etc/condor/.created_tokens/MyNode0001.key /etc/condor/tokens.d/
 
 ## Enable service and start it
 
