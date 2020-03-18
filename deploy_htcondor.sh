@@ -27,8 +27,8 @@ tmp_dir=/tmp/$(basename $0)-$$
 mkdir -p $tmp_dir
 pushd $tmp_dir && (
     git clone https://github.com/HTPhenotyping/execute_node_config
-    sed -i 's/changeme/$CENTRAL_MANAGER/' execute_node_config/config.d/10-CentralManager
-    sed -i 's/changeme/$UNIQUE_NAME/' execute_node_config/config.d/20-UniqueName
+    sed -i "s/changeme/$CENTRAL_MANAGER/" execute_node_config/config.d/10-CentralManager
+    sed -i "s/changeme/$UNIQUE_NAME/" execute_node_config/config.d/20-UniqueName
     mv execute_node_config/config.d/* /etc/condor/config.d/
 )
 popd
