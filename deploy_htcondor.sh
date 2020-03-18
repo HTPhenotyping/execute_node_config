@@ -23,8 +23,8 @@ grep "$deb_url" /etc/apt/sources.list || (
 apt-get -y update
 apt-get -y install git libglobus-gss-assist3 htcondor
 
-tmp_dir=/tmp/${0}-$$
-mkdir -p /tmp/${0}-$
+tmp_dir=/tmp/$(basename $0)-$$
+mkdir -p $tmp_dir
 pushd $tmp_dir && (
     git clone https://github.com/HTPhenotyping/execute_node_config
     sed -i 's/changeme/$CENTRAL_MANAGER/' execute_node_config/config.d/10-CentralManager
