@@ -34,6 +34,8 @@ pushd "$tmp_dir" && (
 popd
 rm -rf "$tmp_dir"
 mkdir -p /etc/condor/{tokens.d,passwords.d}
+chmod 700 /etc/condor/{tokens.d,passwords.d}
+chown -R condor /etc/condor/tokens.d
 
 systemctl enable condor.service
 systemctl start condor.service
