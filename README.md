@@ -42,7 +42,7 @@ or make the changes on the command line:
 
 If the group this execute node belongs to does not already have a (revokable) password already:
 
-    condor_store_credd -f /etc/condor/passwords.d/GROUPNAME
+    condor_store_cred -f /etc/condor/passwords.d/GROUPNAME
     <generate 64-char password from https://passwordsgenerator.net/>
 
 Then:
