@@ -1,15 +1,29 @@
 #!/bin/bash
-set -ex
+# This script deploys HTCondor according to the config in
+# https://github.com/HTPhenotyping/execute_node_config .
+# It requires the user supply the central manager hostname
+# and a unique name to identify this machine.
+# This script must run with root privileges as it installs
+# many packages and modifies system configuration.
 
-CENTRAL_MANAGER=$1
-UNIQUE_NAME=$2
-HTCONDOR_VERSION=8.9
-UBUNTU_CODENAME=$(awk -F= '$1=="UBUNTU_CODENAME" { print $2 ;}' /etc/os-release)
+set -e
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <Central Manager Hostname> <Unique Name>"
+    exit 1
+fi
 
 if [ "$(id -u)" != "0" ]; then
    echo "This script must be run as root or with sudo"
    exit 1
 fi
+
+set -x
+
+CENTRAL_MANAGER=$1
+UNIQUE_NAME=$2
+HTCONDOR_VERSION=8.9
+UBUNTU_CODENAME=$(awk -F= '$1=="UBUNTU_CODENAME" { print $2 ;}' /etc/os-release)
 
 base_url="https://research.cs.wisc.edu/htcondor/ubuntu"
 key_url="${base_url}/HTCondor-Release.gpg.key"
