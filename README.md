@@ -47,7 +47,7 @@ If the group this execute node belongs to does not already have a (revokable) pa
 
 Then:
 
-    condor_token_create -authz ADVERTISE_STARTD -authz ADVERTISE_MASTER -identity MyNode0001@my-cm-host -key GROUPNAME > /etc/condor/.created_tokens/MyNode0001.key
+    condor_token_create -authz ADVERTISE_STARTD -authz ADVERTISE_MASTER -identity STARTD_MyNode0001@my-cm-host -key GROUPNAME > /etc/condor/.created_tokens/MyNode0001.key
 
 ### On execute node
 
