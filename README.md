@@ -1,4 +1,4 @@
-# HTPhenology Execute Node Configuration
+# HTPhenotyping Execute Node Configuration
 
 1. Install HTCondor
 2. Copy configuration from this repo's `config.d/` directory into `/etc/condor/config.d/`
