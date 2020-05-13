@@ -85,7 +85,7 @@ deb_url="${base_url}/${HTCONDOR_VERSION}/${UBUNTU_CODENAME}"
 
 echo "Adding the HTCondor $HTCONDOR_VERSION Ubuntu $UBUNTU_CODENAME repository to apt's sources list..."
 wget -O - "$key_url" 2>&19 | apt-key add - >&19 2>&19 || fail "Could not add key from $key_url"
-grep "$deb_url" /etc/apt/sources.list || (
+grep "$deb_url" /etc/apt/sources.list >&19 2>&19 || (
     echo "deb $deb_url $UBUNTU_CODENAME contrib" >> /etc/apt/sources.list
     echo "deb-src $deb_url $UBUNTU_CODENAME contrib" >> /etc/apt/sources.list
 )
