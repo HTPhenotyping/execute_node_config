@@ -122,4 +122,5 @@ chmod o+xr "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_
 find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod o+rx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
 find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod o+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
 
-echo "Done. A log file was saved to $LOGFILE and can be safely deleted once HTCondor is confirmed working."
+echo "Done. A log file was saved to $LOGFILE"
+echo "This log file can be safely deleted once HTCondor is confirmed working."
