@@ -1,8 +1,9 @@
 #!/bin/bash
-# This script deploys HTCondor according to the config in
+# This script deploys HTCondor according to the configs in
 # https://github.com/HTPhenotyping/execute_node_config .
-# It requires the user supply the central manager hostname
-# and a unique name to identify this machine.
+# It requires the user supply the central manager hostname,
+# a unique name to identify this machine, and the path that
+# users are expected to transfer data from.
 # This script must run with root privileges as it installs
 # many packages and modifies system configuration.
 
@@ -58,26 +59,42 @@ fi
 while [ -z "$CENTRAL_MANAGER" ]; do
     read -p "Central manager hostname: " CENTRAL_MANAGER
 done
+[[ "$CENTRAL_MANAGER" =~ ^[a-z0-9][a-z0-9.-]*$ ]] || \
+    fail "The central manager hostname must be a valid hostname"
 
 # Check for data source name
 while [ -z "$DATA_SOURCE_NAME" ]; do
     read -p "Preferred data source name (e.g. MyUniversity_Smith): " DATA_SOURCE_NAME
 done
+[[ "$DATA_SOURCE_NAME" =~ ^[A-Za-z0-9_]+$ ]] || \
+    fail "The data source name may only contain alphanumeric characters and underscores"
 
 # Check for data source directory
 while [ -z "$DATA_SOURCE_DIRECTORY" ]; do
     read -p "Data source directory (e.g. /mnt/external/images): " DATA_SOURCE_DIRECTORY
 done
 
-# Check data source directory existence
-if [[ ! -d "$DATA_SOURCE_DIRECTORY" ]]; then
+# Run tests on directory
+[[ "$DATA_SOURCE_DIRECTORY" =~ ^/ ]] || \
+    fail "The data source directory must be an absolute path"
+[[ -d "$DATA_SOURCE_DIRECTORY" ]] || \
     fail "$DATA_SOURCE_DIRECTORY does not exist"
+REAL_DIR=$(readlink -f "$DATA_SOURCE_DIRECTORY")
+if [[ ! "$DATA_SOURCE_DIRECTORY" == "$REAL_DIR" ]]; then
+    warn "$DATA_SOURCE_DIRECTORY is actually $REAL_DIR"
+    warn "Will enforce permissions on $REAL_DIR"
+    DATA_SOURCE_DIRECTORY="$REAL_DIR"
 fi
+# This is not comprehensive but should stop most misguided attempts
+[[ "$DATA_SOURCE_DIRECTORY" =~ ^/(bin|boot|dev|etc|lib|lib64|proc|root|run|sbin|srv|sys|tmp|usr|var)?(/.*)?$ ]] && \
+    fail "The data source directory cannot be (under) a system directory"
+echo
 
 # Get HTCondor and Ubuntu versions
 HTCONDOR_VERSION=8.9
 UBUNTU_CODENAME=$(awk -F= '$1=="UBUNTU_CODENAME" { print $2 ;}' /etc/os-release)
 echo "This machine is running Ubuntu $UBUNTU_CODENAME."
+echo
 
 base_url="https://research.cs.wisc.edu/htcondor/ubuntu"
 key_url="${base_url}/HTCondor-Release.gpg.key"
@@ -89,15 +106,16 @@ grep "$deb_url" /etc/apt/sources.list >&19 2>&19 || (
     echo "deb $deb_url $UBUNTU_CODENAME contrib" >> /etc/apt/sources.list
     echo "deb-src $deb_url $UBUNTU_CODENAME contrib" >> /etc/apt/sources.list
 )
+
 echo "Updating apt's list of packages..."
 apt-get -y update  >&19 2>&19 || fail "Could not update packages"
 sleep 1 # Give apt a second
 echo "Installing HTCondor..."
 apt-get -y install git libglobus-gss-assist3 htcondor >&19 2>&19 || fail "Could not install HTCondor"
 
-tmp_dir="/tmp/$(basename $0)-$$"
+echo "Downloading, modifying, and installing HTCondor configuration..."
+tmp_dir="/tmp/deploy_htcondor-$$"
 config_repo="https://github.com/HTPhenotyping/execute_node_config"
-echo "Downloading, modifying, and installing HTCondor configuration"
 mkdir -p "$tmp_dir" || fail "Could not create temporary directory $tmp_dir"
 pushd "$tmp_dir" >&19 2>&19 && (
     git clone $config_repo >&19 2>&19 || fail "Could not clone git repo $config_repo"
@@ -106,7 +124,7 @@ pushd "$tmp_dir" >&19 2>&19 && (
     mv execute_node_config/config.d/* /etc/condor/config.d/ || fail "Could not install config files from $tmp_dir"
 )
 popd >&19 2>&19
-rm -rf "$tmp_dir" >&19 2>&19 || warn "Could not remove $tmp_dir"
+rm -rf "$tmp_dir" >&19 2>&19 || warn "Could not remove temporary directory $tmp_dir"
 mkdir -p /etc/condor/{tokens.d,passwords.d} >&19 2>&19 || fail "Could not create tokens.d and/or passwords.d"
 chmod 700 /etc/condor/{tokens.d,passwords.d} >&19 2>&19 || fail "Could not set permissions on tokens.d and/or passwords.d"
 chown -R condor:condor /etc/condor/tokens.d >&19 2>&19 || fail "Could not change ownership of tokens.d and/or passwords.d"
@@ -122,5 +140,6 @@ chmod o+xr "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_
 find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod o+rx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
 find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod o+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
 
+echo
 echo "Done. A log file was saved to $LOGFILE"
 echo "This log file can be safely deleted once HTCondor is confirmed working."
