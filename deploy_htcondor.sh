@@ -91,6 +91,7 @@ grep "$deb_url" /etc/apt/sources.list || (
 )
 echo "Updating apt's list of packages..."
 apt-get -y update  >&19 2>&19 || fail "Could not update packages"
+sleep 1 # Give apt a second
 echo "Installing HTCondor..."
 apt-get -y install git libglobus-gss-assist3 htcondor >&19 2>&19 || fail "Could not install HTCondor"
 
