@@ -125,15 +125,15 @@ deb_url="${base_url}/${HTCONDOR_VERSION}/${UBUNTU_CODENAME}"
 echo "Checking for required tools..."
 # Check for existence of gnupg and wget
 missing_pkgs=""
-command -v wget || (
+command -v wget >&19 2>&19 || {
     echo "wget is missing, will be installed..."
     missing_pkgs="wget $missing_pkgs"
-)
-command -v gpg || (
+}
+command -v gpg >&19 2>&19 || {
     echo "gnupg2 is missing, will be installed..."
     missing_pkgs="gnupg2 $missing_pkgs"
-)
-if [ ! -z "$missing_pkgs" ]; then
+}
+if [[ ! -z "$missing_pkgs" ]]; then
     "Installing $missing_pkgs..."
     apt-get -y update >&19 2>&19 || fail "Could not update packages"
     apt-get -y install $missing_pkgs >&19 2>&19 || fail "Could not install missing packages"
