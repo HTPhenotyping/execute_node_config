@@ -17,6 +17,10 @@ priv_error() {
     exit 1
 }
 
+fail_noexit() {
+    echo "ERROR:    $*" 1>&2
+}
+
 fail() {
     echo "ERROR:    $*" 1>&2
     echo "Check $LOGFILE for more details" 1>&2
@@ -45,7 +49,7 @@ while getopts "c:d:n:" OPTION; do
 done
 
 # Set up logging https://askubuntu.com/a/1001404
-LOGFILE="/tmp/deploy_htcondor.$$.log"
+LOGFILE="/tmp/install_htcondor.$$.log"
 exec 19> $LOGFILE
 BASH_XTRACEFD=19
 set -x
@@ -59,15 +63,21 @@ fi
 while [ -z "$CENTRAL_MANAGER" ]; do
     read -p "Central manager hostname: " CENTRAL_MANAGER
 done
-[[ "$CENTRAL_MANAGER" =~ ^[a-z0-9][a-z0-9.-]*$ ]] || \
-    fail "The central manager hostname must be a valid hostname"
+if [[ ! "$CENTRAL_MANAGER" =~ ^[a-z0-9][a-z0-9.-]*$ ]]; then
+    fail_noexit "The central manager hostname must be a valid hostname"
+    echo "Please check your input and try again" 1>&2
+    exit 1
+fi
 
 # Check for data source name
 while [ -z "$DATA_SOURCE_NAME" ]; do
     read -p "Preferred data source name (e.g. MyUniversity_Smith): " DATA_SOURCE_NAME
 done
-[[ "$DATA_SOURCE_NAME" =~ ^[A-Za-z0-9_]+$ ]] || \
-    fail "The data source name may only contain alphanumeric characters and underscores"
+if [[ ! "$DATA_SOURCE_NAME" =~ ^[A-Za-z0-9_]+$ ]]; then
+    fail_noexit "The data source name may only contain alphanumeric characters and underscores"
+    echo "Please check your input and try again" 1>&2
+    exit 1
+endif
 
 # Check for data source directory
 while [ -z "$DATA_SOURCE_DIRECTORY" ]; do
@@ -75,10 +85,16 @@ while [ -z "$DATA_SOURCE_DIRECTORY" ]; do
 done
 
 # Run tests on directory
-[[ "$DATA_SOURCE_DIRECTORY" =~ ^/ ]] || \
-    fail "The data source directory must be an absolute path"
-[[ -d "$DATA_SOURCE_DIRECTORY" ]] || \
-    fail "$DATA_SOURCE_DIRECTORY does not exist"
+if [[ ! "$DATA_SOURCE_DIRECTORY" =~ ^/ ]]; then
+    fail_noexit "The data source directory must be an absolute path"
+    echo "The data source directory must be the full path, starting with /" 1>&2
+    exit 1
+fi
+if [[ ! -d "$DATA_SOURCE_DIRECTORY" ]]; then
+    fail_noexit "$DATA_SOURCE_DIRECTORY does not exist"
+    echo "Please check your input and make sure $DATA_SOURCE_DIRECTORY exists and try again" 1>&2
+    exit 1
+fi
 REAL_DIR=$(readlink -f "$DATA_SOURCE_DIRECTORY")
 if [[ ! "$DATA_SOURCE_DIRECTORY" == "$REAL_DIR" ]]; then
     warn "$DATA_SOURCE_DIRECTORY is actually $REAL_DIR"
@@ -86,8 +102,11 @@ if [[ ! "$DATA_SOURCE_DIRECTORY" == "$REAL_DIR" ]]; then
     DATA_SOURCE_DIRECTORY="$REAL_DIR"
 fi
 # This is not comprehensive but should stop most misguided attempts
-[[ "$DATA_SOURCE_DIRECTORY" =~ ^/(bin|boot|dev|etc|lib|lib64|proc|root|run|sbin|srv|sys|tmp|usr|var)?(/.*)?$ ]] && \
-    fail "The data source directory cannot be (under) a system directory"
+if [[ "$DATA_SOURCE_DIRECTORY" =~ ^/(bin|boot|dev|etc|lib|lib64|proc|root|run|sbin|srv|sys|tmp|usr|var)?(/.*)?$ ]]; then
+    fail_noexit "The data source directory cannot be (under) a system directory"
+    echo "The data source directory should exist under /mnt, /home, or other non-system directory" 1>&2
+    exit 1
+fi
 echo
 
 # Get HTCondor and Ubuntu versions
@@ -114,7 +133,7 @@ echo "Installing HTCondor..."
 apt-get -y install git libglobus-gss-assist3 htcondor >&19 2>&19 || fail "Could not install HTCondor"
 
 echo "Downloading, modifying, and installing HTCondor configuration..."
-tmp_dir="/tmp/deploy_htcondor-$$"
+tmp_dir="/tmp/install_htcondor-$$"
 config_repo="https://github.com/HTPhenotyping/execute_node_config"
 mkdir -p "$tmp_dir" || fail "Could not create temporary directory $tmp_dir"
 pushd "$tmp_dir" >&19 2>&19 && (
