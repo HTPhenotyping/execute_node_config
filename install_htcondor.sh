@@ -134,7 +134,7 @@ command -v gpg >&19 2>&19 || {
     missing_pkgs="gnupg2 $missing_pkgs"
 }
 if [[ ! -z "$missing_pkgs" ]]; then
-    "Installing $missing_pkgs..."
+    echo "Installing $missing_pkgs..."
     apt-get -y update >&19 2>&19 || fail "Could not update packages"
     apt-get -y install $missing_pkgs >&19 2>&19 || fail "Could not install missing packages"
 fi
