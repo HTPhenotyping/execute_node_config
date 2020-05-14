@@ -168,11 +168,17 @@ mkdir -p /etc/condor/{tokens.d,passwords.d} >&19 2>&19 || fail "Could not create
 chmod 700 /etc/condor/{tokens.d,passwords.d} >&19 2>&19 || fail "Could not set permissions on tokens.d and/or passwords.d"
 chown -R condor:condor /etc/condor/tokens.d >&19 2>&19 || fail "Could not change ownership of tokens.d and/or passwords.d"
 
-echo "Setting HTCondor to automatically run at boot..."
-systemctl enable condor.service >&19 2>&19 || fail "Could not enable condor.service"
+pidof systemd >&19 2>&19 && {
+    echo "Setting HTCondor to automatically run at boot..."
+    systemctl enable condor.service >&19 2>&19 || fail "Could not enable condor.service"
+}
 
 echo "Starting HTCondor..."
-systemctl start condor.service >&19 2>&19 || fail "Could not start condor.service"
+pidof systemd >&19 2>&19 && {
+    systemctl start condor.service >&19 2>&19 || fail "Could not start condor.service"
+} || {
+    condor_master >&19 2>&19 || fail "Could not start condor_master"
+}
 
 echo "Setting permissions on $DATA_SOURCE_DIRECTORY to be readable by HTCondor..."
 chmod o+xr "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY"
