@@ -127,11 +127,11 @@ echo "Checking for required tools..."
 missing_pkgs=""
 command -v wget || (
     echo "wget is missing, will be installed..."
-    missing_pkgs="$missing_pkgs wget"
+    missing_pkgs="wget $missing_pkgs"
 )
 command -v gpg || (
     echo "gnupg2 is missing, will be installed..."
-    missing_pkgs="$missing_pkgs gnupg2"
+    missing_pkgs="gnupg2 $missing_pkgs"
 )
 missing_pkgs="${missing_pkgs## }" # trim leading space
 if [ ! -z "$missing_pkgs" ]; then
