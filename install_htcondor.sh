@@ -122,6 +122,24 @@ base_url="https://research.cs.wisc.edu/htcondor/ubuntu"
 key_url="${base_url}/HTCondor-Release.gpg.key"
 deb_url="${base_url}/${HTCONDOR_VERSION}/${UBUNTU_CODENAME}"
 
+echo "Checking for required tools..."
+# Check for existence of gnupg and wget
+missing_pkgs=""
+command -v wget || (
+    echo "wget is missing, will be installed..."
+    missing_pkgs="$missing_pkgs wget"
+)
+command -v gpg || (
+    echo "gnupg2 is missing, will be installed..."
+    missing_pkgs="$missing_pkgs gnupg2"
+)
+missing_pkgs="${missing_pkgs## }" # trim leading space
+if [ ! -z "$missing_pkgs" ]; then
+    "Installing $missing_pkgs..."
+    apt-get -y update >&19 2>&19 || fail "Could not update packages"
+    apt-get -y install $missing_pkgs >&19 2>&19 || fail "Could not install missing packages"
+fi
+
 echo "Adding the HTCondor $HTCONDOR_VERSION Ubuntu $UBUNTU_CODENAME repository to apt's sources list..."
 wget -O - "$key_url" 2>&19 | apt-key add - >&19 2>&19 || fail "Could not add key from $key_url"
 grep "$deb_url" /etc/apt/sources.list >&19 2>&19 || (
@@ -130,8 +148,8 @@ grep "$deb_url" /etc/apt/sources.list >&19 2>&19 || (
 )
 
 echo "Updating apt's list of packages..."
-apt-get -y update  >&19 2>&19 || fail "Could not update packages"
-sleep 1 # Give apt a second
+apt-get -y update >&19 2>&19 || fail "Could not update packages"
+sleep 2 # Give apt a couple seconds
 echo "Installing HTCondor..."
 apt-get -y install git libglobus-gss-assist3 htcondor >&19 2>&19 || fail "Could not install HTCondor"
 
