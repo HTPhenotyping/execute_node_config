@@ -133,7 +133,6 @@ command -v gpg || (
     echo "gnupg2 is missing, will be installed..."
     missing_pkgs="gnupg2 $missing_pkgs"
 )
-missing_pkgs="${missing_pkgs## }" # trim leading space
 if [ ! -z "$missing_pkgs" ]; then
     "Installing $missing_pkgs..."
     apt-get -y update >&19 2>&19 || fail "Could not update packages"
