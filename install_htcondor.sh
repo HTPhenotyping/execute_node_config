@@ -109,9 +109,6 @@ if [[ "$DATA_SOURCE_DIRECTORY" =~ ^/(bin|boot|dev|etc|lib|lib64|proc|root|run|sb
 fi
 echo
 
-# Make sure no more user interaction is necessary
-DEBIAN_FRONTEND=noninteractive
-
 # Get HTCondor and Ubuntu versions
 HTCONDOR_VERSION=8.9
 UBUNTU_CODENAME=$(awk -F= '$1=="UBUNTU_CODENAME" { print $2 ;}' /etc/os-release)
@@ -135,8 +132,8 @@ command -v gpg >&19 2>&19 || {
 }
 if [[ ! -z "$missing_pkgs" ]]; then
     echo "Installing $missing_pkgs..."
-    apt-get -y update >&19 2>&19 || fail "Could not update packages"
-    apt-get -y install $missing_pkgs >&19 2>&19 || fail "Could not install missing packages"
+    DEBIAN_FRONTEND=noninteractive apt-get -y update >&19 2>&19 || fail "Could not update packages"
+    DEBIAN_FRONTEND=noninteractive apt-get -y install $missing_pkgs >&19 2>&19 || fail "Could not install missing packages"
 fi
 
 echo "Adding the HTCondor $HTCONDOR_VERSION Ubuntu $UBUNTU_CODENAME repository to apt's sources list..."
@@ -147,10 +144,10 @@ grep "$deb_url" /etc/apt/sources.list >&19 2>&19 || (
 )
 
 echo "Updating apt's list of packages..."
-apt-get -y update >&19 2>&19 || fail "Could not update packages"
+DEBIAN_FRONTEND=noninteractive apt-get -y update >&19 2>&19 || fail "Could not update packages"
 sleep 2 # Give apt a couple seconds
 echo "Installing HTCondor..."
-apt-get -y install git libglobus-gss-assist3 htcondor >&19 2>&19 || fail "Could not install HTCondor"
+DEBIAN_FRONTEND=noninteractive apt-get -y install git libglobus-gss-assist3 htcondor >&19 2>&19 || fail "Could not install HTCondor"
 
 echo "Downloading, modifying, and installing HTCondor configuration..."
 tmp_dir="/tmp/install_htcondor-$$"
@@ -168,11 +165,17 @@ mkdir -p /etc/condor/{tokens.d,passwords.d} >&19 2>&19 || fail "Could not create
 chmod 700 /etc/condor/{tokens.d,passwords.d} >&19 2>&19 || fail "Could not set permissions on tokens.d and/or passwords.d"
 chown -R condor:condor /etc/condor/tokens.d >&19 2>&19 || fail "Could not change ownership of tokens.d and/or passwords.d"
 
-echo "Setting HTCondor to automatically run at boot..."
-systemctl enable condor.service >&19 2>&19 || fail "Could not enable condor.service"
+pidof systemd >&19 2>&19 && {
+    echo "Setting HTCondor to automatically run at boot..."
+    systemctl enable condor.service >&19 2>&19 || fail "Could not enable condor.service"
+}
 
 echo "Starting HTCondor..."
-systemctl start condor.service >&19 2>&19 || fail "Could not start condor.service"
+pidof systemd >&19 2>&19 && {
+    systemctl start condor.service >&19 2>&19 || fail "Could not start condor.service"
+} || {
+    condor_master >&19 2>&19 || fail "Could not start condor_master"
+}
 
 echo "Setting permissions on $DATA_SOURCE_DIRECTORY to be readable by HTCondor..."
 chmod o+xr "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY"
