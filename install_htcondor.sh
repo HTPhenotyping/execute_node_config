@@ -109,6 +109,9 @@ if [[ "$DATA_SOURCE_DIRECTORY" =~ ^/(bin|boot|dev|etc|lib|lib64|proc|root|run|sb
 fi
 echo
 
+# Make sure no more user interaction is necessary
+DEBIAN_FRONTEND=noninteractive
+
 # Get HTCondor and Ubuntu versions
 HTCONDOR_VERSION=8.9
 UBUNTU_CODENAME=$(awk -F= '$1=="UBUNTU_CODENAME" { print $2 ;}' /etc/os-release)
