@@ -77,7 +77,7 @@ if [[ ! "$DATA_SOURCE_NAME" =~ ^[A-Za-z0-9_]+$ ]]; then
     fail_noexit "The data source name may only contain alphanumeric characters and underscores"
     echo "Please check your input and try again" 1>&2
     exit 1
-endif
+fi
 
 # Check for data source directory
 while [ -z "$DATA_SOURCE_DIRECTORY" ]; do
