@@ -183,9 +183,9 @@ find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod o+rx "{}" \; || fail "Could no
 find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod o+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
 
 echo "Finishing data source $DATA_SOURCE_NAME registration with $CENTRAL_MANAGER..."
-# Using register.py from specific commit:
-# https://github.com/HTPhenotyping/registration/blob/e279b5c4b1d0fab6b4c845d267e3707ce2b0c8d2/register.py
-register_url="https://raw.githubusercontent.com/HTPhenotyping/registration/e279b5c4b1d0fab6b4c845d267e3707ce2b0c8d2/register.py"
+# Using register.py from master:
+# https://github.com/HTPhenotyping/registration/blob/master/register.py
+register_url="https://raw.githubusercontent.com/HTPhenotyping/registration/master/register.py"
 register_path="/usr/sbin/register.py"
 wget "$register_url" -O "$register_path" >&19 2>&19 || fail "Could not download register.py"
 chmod u+x "$register_path" || fail "Could not set permissions on register.py"
