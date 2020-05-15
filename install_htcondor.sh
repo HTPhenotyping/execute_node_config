@@ -182,6 +182,26 @@ chmod o+xr "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_
 find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod o+rx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
 find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod o+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
 
+echo "Finishing data source $DATA_SOURCE_NAME registration with $CENTRAL_MANAGER..."
+# Using register.py from master:
+# https://github.com/HTPhenotyping/registration/blob/master/register.py
+register_url="https://raw.githubusercontent.com/HTPhenotyping/registration/master/register.py"
+register_path="/usr/sbin/register.py"
+wget "$register_url" -O "$register_path" >&19 2>&19 || fail "Could not download register.py"
+chmod u+x "$register_path" || fail "Could not set permissions on register.py"
+regcmd="register.py --pool=$CENTRAL_MANAGER --source=$DATA_SOURCE_NAME"
+$regcmd && {
+    condor_status -limit 1 >&19 2>&19 || {
+	warn "Registration completed, but the machine could not talk to the central manager"
+	echo "Please email the HTPhenotyping service providers with your data source name ($DATA_SOURCE_NAME)" 1>&2
+	echo "and let them know about this message. If possible, include the contents of $LOGFILE" 1>&2
+    }
+} || {
+    warn "Could not finish registration at this time."
+    echo "You can retry registration at a later time by running:" 1>&2
+    echo "  sudo $regcmd" 1>&2
+}
+
 echo
 echo "Done. A log file was saved to $LOGFILE"
 echo "This log file can be safely deleted once HTCondor is confirmed working."
