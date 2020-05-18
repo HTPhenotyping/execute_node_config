@@ -48,6 +48,8 @@ while getopts "c:d:n:" OPTION; do
     esac
 done
 
+echo
+
 # Set up logging https://askubuntu.com/a/1001404
 LOGFILE="/tmp/install_htcondor.$$.log"
 exec 19> $LOGFILE
@@ -146,7 +148,7 @@ grep "$deb_url" /etc/apt/sources.list >&19 2>&19 || (
 echo "Updating apt's list of packages..."
 DEBIAN_FRONTEND=noninteractive apt-get -y update >&19 2>&19 || fail "Could not update packages"
 sleep 2 # Give apt a couple seconds
-echo "Installing HTCondor..."
+echo "Installing HTCondor (this may take 1 to 2 minutes)..."
 DEBIAN_FRONTEND=noninteractive apt-get -y install git libglobus-gss-assist3 htcondor >&19 2>&19 || fail "Could not install HTCondor"
 
 echo "Downloading, modifying, and installing HTCondor configuration..."
@@ -182,6 +184,7 @@ chmod o+xr "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_
 find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod o+rx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
 find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod o+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
 
+echo
 echo "Finishing data source $DATA_SOURCE_NAME registration with $CENTRAL_MANAGER..."
 # Using register.py from master:
 # https://github.com/HTPhenotyping/registration/blob/master/register.py
