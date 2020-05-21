@@ -61,29 +61,51 @@ if [ "$(id -u)" != "0" ]; then
     priv_error
 fi
 
+# Set defaults
+DEFAULT_CENTRAL_MANAGER="htpheno-cm.chtc.wisc.edu"
+DEFAULT_DATA_SOURCE_DIRECTORY="$(readlink -f ~/images)"
+DEFAULTS_FILE="$HOME/.htpheno_defaults"
+if [[ -f "$DEFAULTS_FILE" ]]; then
+    source "$DEFAULTS_FILE"
+fi
+
+echo
+echo "Respond to the following prompts following the installation page and using"
+echo "  the data you entered during registration."
+echo "Leave responses empty to accept the [default value] in square brackets."
+echo
+
 # Check for central manager
-while [ -z "$CENTRAL_MANAGER" ]; do
-    read -p "Central manager hostname: " CENTRAL_MANAGER
+while [[ -z "$CENTRAL_MANAGER" ]]; do
+    read -p "Central manager hostname [$DEFAULT_CENTRAL_MANAGER]: " CENTRAL_MANAGER
+    [[ -z "$CENTRAL_MANAGER" ]] && [[ ! -z "$DEFAULT_CENTRAL_MANAGER" ]] && \
+	CENTRAL_MANAGER="$DEFAULT_CENTRAL_MANAGER"
 done
 if [[ ! "$CENTRAL_MANAGER" =~ ^[a-z0-9][a-z0-9.-]*$ ]]; then
     fail_noexit "The central manager hostname must be a valid hostname"
     echo "Please check your input and try again" 1>&2
     exit 1
 fi
+echo "DEFAULT_CENTRAL_MANAGER=\"$CENTRAL_MANAGER\"" > $DEFAULTS_FILE
 
 # Check for data source name
-while [ -z "$DATA_SOURCE_NAME" ]; do
-    read -p "Preferred data source name (e.g. MyUniversity_Smith): " DATA_SOURCE_NAME
+while [[ -z "$DATA_SOURCE_NAME" ]]; do
+    read -p "Preferred data source name [$DEFAULT_DATA_SOURCE_NAME]: " DATA_SOURCE_NAME
+    [[ -z "$DATA_SOURCE_NAME" ]] && [[ ! -z "$DEFAULT_DATA_SOURCE_NAME" ]] && \
+	DATA_SOURCE_NAME="$DEFAULT_DATA_SOURCE_NAME"
 done
 if [[ ! "$DATA_SOURCE_NAME" =~ ^[A-Za-z0-9_]+$ ]]; then
     fail_noexit "The data source name may only contain alphanumeric characters and underscores"
     echo "Please check your input and try again" 1>&2
     exit 1
 fi
+echo "DEFAULT_DATA_SOURCE_NAME=\"$DATA_SOURCE_NAME\"" >> $DEFAULTS_FILE
 
 # Check for data source directory
-while [ -z "$DATA_SOURCE_DIRECTORY" ]; do
-    read -p "Data source directory (e.g. /mnt/external/images): " DATA_SOURCE_DIRECTORY
+while [[ -z "$DATA_SOURCE_DIRECTORY" ]]; do
+    read -p "Data source directory [$DEFAULT_DATA_SOURCE_DIRECTORY]: " DATA_SOURCE_DIRECTORY
+    [[ -z "$DATA_SOURCE_DIRECTORY" ]] && [[ ! -z "$DEFAULT_DATA_SOURCE_DIRECTORY" ]] && \
+	DATA_SOURCE_DIRECTORY="$DEFAULT_DATA_SOURCE_DIRECTORY"
 done
 
 # Run tests on directory
@@ -109,6 +131,7 @@ if [[ "$DATA_SOURCE_DIRECTORY" =~ ^/(bin|boot|dev|etc|lib|lib64|proc|root|run|sb
     echo "The data source directory should exist under /mnt, /home, or other non-system directory" 1>&2
     exit 1
 fi
+echo "DEFAULT_DATA_SOURCE_DIRECTORY=\"$DATA_SOURCE_DIRECTORY\"" >> $DEFAULTS_FILE
 echo
 
 # Get HTCondor and Ubuntu versions
