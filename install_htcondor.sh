@@ -42,6 +42,9 @@ while getopts "c:d:n:" OPTION; do
 	n)
 	    DATA_SOURCE_NAME="$OPTARG"
 	    ;;
+	p)
+	    PROJECT="$OPTARG"
+	    ;;
 	\?)
 	    usage
 	    ;;
@@ -61,10 +64,32 @@ if [ "$(id -u)" != "0" ]; then
     priv_error
 fi
 
+# Get sudo user and home dir
+if [[ -z "$SUDO_USER" ]]; then
+    SUDO_USER="root"
+    HOME="/"
+else
+    HOME="$(eval echo "~$SUDO_USER")"
+fi
+
 # Set defaults
+DEFAULT_PROJECT="drone"
+if [[ -z "$PROJECT" ]]; then
+    PROJECT="$DEFAULT_PROJECT"
+fi
+
 DEFAULT_CENTRAL_MANAGER="htpheno-cm.chtc.wisc.edu"
-DEFAULT_DATA_SOURCE_DIRECTORY="$(readlink -f ~/images)"
-DEFAULTS_FILE="$HOME/.htpheno_defaults"
+
+case "$PROJECT" in
+    'drone')
+	DEFAULT_DATA_SOURCE_DIRECTORY="$(readlink -f "$HOME/${PROJECT}_data")"
+	;;
+    *)
+	DEFAULT_DATA_SOURCE_DIRECTORY="$(readlink -f "$HOME/data")"
+	;;
+esac
+
+DEFAULTS_FILE="/tmp/.htpheno_defaults"
 if [[ -f "$DEFAULTS_FILE" ]]; then
     source "$DEFAULTS_FILE"
 fi
@@ -72,6 +97,7 @@ fi
 echo
 echo "Respond to the following prompts following the installation page and using"
 echo "  the data you entered during registration."
+echo
 echo "Leave responses empty to accept the [default value] in square brackets."
 echo
 
@@ -114,11 +140,6 @@ if [[ ! "$DATA_SOURCE_DIRECTORY" =~ ^/ ]]; then
     echo "The data source directory must be the full path, starting with /" 1>&2
     exit 1
 fi
-if [[ ! -d "$DATA_SOURCE_DIRECTORY" ]]; then
-    fail_noexit "$DATA_SOURCE_DIRECTORY does not exist"
-    echo "Please check your input and make sure $DATA_SOURCE_DIRECTORY exists and try again" 1>&2
-    exit 1
-fi
 REAL_DIR=$(readlink -f "$DATA_SOURCE_DIRECTORY")
 if [[ ! "$DATA_SOURCE_DIRECTORY" == "$REAL_DIR" ]]; then
     warn "$DATA_SOURCE_DIRECTORY is actually $REAL_DIR"
@@ -130,6 +151,12 @@ if [[ "$DATA_SOURCE_DIRECTORY" =~ ^/(bin|boot|dev|etc|lib|lib64|proc|root|run|sb
     fail_noexit "The data source directory cannot be (under) a system directory"
     echo "The data source directory should exist under /mnt, /home, or other non-system directory" 1>&2
     exit 1
+fi
+if [[ ! -d "$DATA_SOURCE_DIRECTORY" ]]; then
+    warn "$DATA_SOURCE_DIRECTORY does not exist, attempting to create it..."
+    mkdir -pv "$DATA_SOURCE_DIRECTORY" >&19 2>&19 || fail "Could not create $DATA_SOURCE_DIRECTORY"
+    chown "$SUDO_USER" "$DATA_SOURCE_DIRECTORY" >&19 2>&19 || fail "Could not own $DATA_SOURCE_DIRECTORY to $SUDO_USER"
+    echo "Created $DATA_SOURCE_DIRECTORY..."
 fi
 echo "DEFAULT_DATA_SOURCE_DIRECTORY=\"$DATA_SOURCE_DIRECTORY\"" >> $DEFAULTS_FILE
 echo
@@ -180,15 +207,17 @@ config_repo="https://github.com/HTPhenotyping/execute_node_config"
 mkdir -p "$tmp_dir" || fail "Could not create temporary directory $tmp_dir"
 pushd "$tmp_dir" >&19 2>&19 && (
     git clone $config_repo >&19 2>&19 || fail "Could not clone git repo $config_repo"
-    sed -i "s/changeme/$CENTRAL_MANAGER/" execute_node_config/config.d/10-CentralManager
-    sed -i "s/changeme/$DATA_SOURCE_NAME/" execute_node_config/config.d/20-UniqueName
+    sed -i "s/changeme/$CENTRAL_MANAGER/"       execute_node_config/config.d/10-CentralManager
+    sed -i "s/changeme/$DATA_SOURCE_NAME/"      execute_node_config/config.d/20-UniqueName
+    sed -i "s/changeme/$SUDO_USER/"             execute_node_config/config.d/21-InstallUser
+    sed -i "s|changeme|$DATA_SOURCE_DIRECTORY|" execute_node_config/config.d/22-DataDir
     mv execute_node_config/config.d/* /etc/condor/config.d/ || fail "Could not install config files from $tmp_dir"
 )
 popd >&19 2>&19
 rm -rf "$tmp_dir" >&19 2>&19 || warn "Could not remove temporary directory $tmp_dir"
-mkdir -p /etc/condor/{tokens.d,passwords.d} >&19 2>&19 || fail "Could not create tokens.d and/or passwords.d"
+mkdir -p /etc/condor/{tokens.d,passwords.d}  >&19 2>&19 || fail "Could not create tokens.d and/or passwords.d"
 chmod 700 /etc/condor/{tokens.d,passwords.d} >&19 2>&19 || fail "Could not set permissions on tokens.d and/or passwords.d"
-chown -R condor:condor /etc/condor/tokens.d >&19 2>&19 || fail "Could not change ownership of tokens.d and/or passwords.d"
+chown -R condor:condor /etc/condor/tokens.d  >&19 2>&19 || fail "Could not change ownership of tokens.d and/or passwords.d"
 
 pidof systemd >&19 2>&19 && {
     echo "Setting HTCondor to automatically run at boot..."
@@ -206,6 +235,19 @@ echo "Setting permissions on $DATA_SOURCE_DIRECTORY to be readable by HTCondor..
 chmod o+xr "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY"
 find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod o+rx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
 find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod o+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
+
+# Postprocessing
+case "$PROJECT" in
+    'drone') # Create a symlink to the data source directory on the desktop and create intiial flight number directories
+	echo "Creating a link to $DATA_SOURCE_DIRECTORY on the Desktop..."
+	ln -sf "$DATA_SOURCE_DIRECTORY" "$HOME/Desktop/$(basename "$DATA_SOURCE_DIRECTORY")" >&19 2>&19 || \
+	    warn "Could not create link to $DATA_SOURCE_DIRECTORY on the Desktop"
+	for i in $(seq -w 1 30); do
+	    mkdir -pv "$DATA_SOURCE_DIRECTORY/FlightNumber_$i" -m 755   >&19 2>&19
+	    chown "$SUDO_USER" "$DATA_SOURCE_DIRECTORY/FlightNumber_$i" >&19 2>&19
+	done
+	;;
+esac
 
 echo
 echo "Finishing data source $DATA_SOURCE_NAME registration with $CENTRAL_MANAGER..."

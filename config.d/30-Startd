@@ -5,7 +5,7 @@ use FEATURE : PartitionableSlot
 START = TARGET.IS_TRANSFER_JOB
 
 # Jobs should target UniqueName
-STARTD_ATTRS = $(STARTD_ATTRS), UniqueName
+STARTD_ATTRS = $(STARTD_ATTRS), UniqueName, InstallUser, DataDir
 
 # Jobs may not run as owner
 STARTER_ALLOW_RUNAS_OWNER = False
