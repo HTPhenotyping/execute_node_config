@@ -4,16 +4,11 @@
 # It requires the user supply the central manager hostname,
 # a unique name to identify this machine, and the path that
 # users are expected to transfer data from.
-# This script must run with root privileges as it installs
+# This script will ask for sudo privileges as it installs
 # many packages and modifies system configuration.
 
 usage() {
     echo "Usage: $0 -c <Central Manager Hostname> -d <Data Source Directory> -n <Data Source Name>" 1>&2
-    exit 1
-}
-
-priv_error() {
-    echo "This script must be run as root or with sudo"
     exit 1
 }
 
@@ -60,16 +55,9 @@ BASH_XTRACEFD=19
 set -x
 
 # Check for root
+SUDO=""
 if [ "$(id -u)" != "0" ]; then
-    priv_error
-fi
-
-# Get sudo user and home dir
-if [[ -z "$SUDO_USER" ]]; then
-    SUDO_USER="root"
-    HOME="/"
-else
-    HOME="$(eval echo "~$SUDO_USER")"
+    SUDO="sudo"
 fi
 
 # Set defaults
@@ -89,7 +77,7 @@ case "$PROJECT" in
 	;;
 esac
 
-DEFAULTS_FILE="/tmp/.htpheno_defaults"
+DEFAULTS_FILE="$HOME/.htpheno_defaults"
 if [[ -f "$DEFAULTS_FILE" ]]; then
     source "$DEFAULTS_FILE"
 fi
@@ -155,7 +143,6 @@ fi
 if [[ ! -d "$DATA_SOURCE_DIRECTORY" ]]; then
     warn "$DATA_SOURCE_DIRECTORY does not exist, attempting to create it..."
     mkdir -pv "$DATA_SOURCE_DIRECTORY" >&19 2>&19 || fail "Could not create $DATA_SOURCE_DIRECTORY"
-    chown "$SUDO_USER" "$DATA_SOURCE_DIRECTORY" >&19 2>&19 || fail "Could not own $DATA_SOURCE_DIRECTORY to $SUDO_USER"
     echo "Created $DATA_SOURCE_DIRECTORY..."
 fi
 echo "DEFAULT_DATA_SOURCE_DIRECTORY=\"$DATA_SOURCE_DIRECTORY\"" >> $DEFAULTS_FILE
@@ -184,22 +171,22 @@ command -v gpg >&19 2>&19 || {
 }
 if [[ ! -z "$missing_pkgs" ]]; then
     echo "Installing $missing_pkgs..."
-    DEBIAN_FRONTEND=noninteractive apt-get -y update >&19 2>&19 || fail "Could not update packages"
-    DEBIAN_FRONTEND=noninteractive apt-get -y install $missing_pkgs >&19 2>&19 || fail "Could not install missing packages"
+    DEBIAN_FRONTEND=noninteractive $SUDO apt-get -y update >&19 2>&19 || fail "Could not update packages"
+    DEBIAN_FRONTEND=noninteractive $SUDO apt-get -y install $missing_pkgs >&19 2>&19 || fail "Could not install missing packages"
 fi
 
 echo "Adding the HTCondor $HTCONDOR_VERSION Ubuntu $UBUNTU_CODENAME repository to apt's sources list..."
-wget -O - "$key_url" 2>&19 | apt-key add - >&19 2>&19 || fail "Could not add key from $key_url"
+wget -O - "$key_url" 2>&19 | $SUDO apt-key add - >&19 2>&19 || fail "Could not add key from $key_url"
 grep "$deb_url" /etc/apt/sources.list >&19 2>&19 || (
-    echo "deb $deb_url $UBUNTU_CODENAME contrib" >> /etc/apt/sources.list
-    echo "deb-src $deb_url $UBUNTU_CODENAME contrib" >> /etc/apt/sources.list
+    echo "deb $deb_url $UBUNTU_CODENAME contrib" | $SUDO tee -a /etc/apt/sources.list > /dev/null
+    echo "deb-src $deb_url $UBUNTU_CODENAME contrib" | $SUDO tee -a /etc/apt/sources.list > /dev/null
 )
 
 echo "Updating apt's list of packages..."
-DEBIAN_FRONTEND=noninteractive apt-get -y update >&19 2>&19 || fail "Could not update packages"
+DEBIAN_FRONTEND=noninteractive $SUDO apt-get -y update >&19 2>&19 || fail "Could not update packages"
 sleep 2 # Give apt a couple seconds
 echo "Installing HTCondor (this may take 1 to 2 minutes)..."
-DEBIAN_FRONTEND=noninteractive apt-get -y install git libglobus-gss-assist3 htcondor >&19 2>&19 || fail "Could not install HTCondor"
+DEBIAN_FRONTEND=noninteractive $SUDO apt-get -y install git libglobus-gss-assist3 htcondor >&19 2>&19 || fail "Could not install HTCondor"
 
 echo "Downloading, modifying, and installing HTCondor configuration..."
 tmp_dir="/tmp/install_htcondor-$$"
@@ -209,32 +196,32 @@ pushd "$tmp_dir" >&19 2>&19 && (
     git clone $config_repo >&19 2>&19 || fail "Could not clone git repo $config_repo"
     sed -i "s/changeme/$CENTRAL_MANAGER/"       execute_node_config/config.d/10-CentralManager
     sed -i "s/changeme/$DATA_SOURCE_NAME/"      execute_node_config/config.d/20-UniqueName
-    sed -i "s/changeme/$SUDO_USER/"             execute_node_config/config.d/21-InstallUser
+    sed -i "s/changeme/$USER/"                  execute_node_config/config.d/21-InstallUser
     sed -i "s|changeme|$DATA_SOURCE_DIRECTORY|" execute_node_config/config.d/22-DataDir
-    mv execute_node_config/config.d/* /etc/condor/config.d/ || fail "Could not install config files from $tmp_dir"
+    $SUDO mv execute_node_config/config.d/* /etc/condor/config.d/ || fail "Could not install config files from $tmp_dir"
 )
 popd >&19 2>&19
 rm -rf "$tmp_dir" >&19 2>&19 || warn "Could not remove temporary directory $tmp_dir"
-mkdir -p /etc/condor/{tokens.d,passwords.d}  >&19 2>&19 || fail "Could not create tokens.d and/or passwords.d"
-chmod 700 /etc/condor/{tokens.d,passwords.d} >&19 2>&19 || fail "Could not set permissions on tokens.d and/or passwords.d"
-chown -R condor:condor /etc/condor/tokens.d  >&19 2>&19 || fail "Could not change ownership of tokens.d and/or passwords.d"
+$SUDO mkdir -p /etc/condor/{tokens.d,passwords.d}  >&19 2>&19 || fail "Could not create tokens.d and/or passwords.d"
+$SUDO chmod 700 /etc/condor/{tokens.d,passwords.d} >&19 2>&19 || fail "Could not set permissions on tokens.d and/or passwords.d"
+$SUDO chown -R condor:condor /etc/condor/tokens.d  >&19 2>&19 || fail "Could not change ownership of tokens.d and/or passwords.d"
 
 pidof systemd >&19 2>&19 && {
     echo "Setting HTCondor to automatically run at boot..."
-    systemctl enable condor.service >&19 2>&19 || fail "Could not enable condor.service"
+    $SUDO systemctl enable condor.service >&19 2>&19 || fail "Could not enable condor.service"
 }
 
 echo "Starting HTCondor..."
 pidof systemd >&19 2>&19 && {
-    systemctl start condor.service >&19 2>&19 || fail "Could not start condor.service"
+    $SUDO systemctl start condor.service >&19 2>&19 || fail "Could not start condor.service"
 } || {
-    condor_master >&19 2>&19 || fail "Could not start condor_master"
+    $SUDO condor_master >&19 2>&19 || fail "Could not start condor_master"
 }
 
 echo "Setting permissions on $DATA_SOURCE_DIRECTORY to be readable by HTCondor..."
-chmod o+xr "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY"
-find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod o+rx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
-find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod o+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
+$SUDO chmod o+xr "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY"
+$SUDO find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod o+rx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
+$SUDO find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod o+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
 
 # Postprocessing
 case "$PROJECT" in
@@ -243,8 +230,7 @@ case "$PROJECT" in
 	ln -sf "$DATA_SOURCE_DIRECTORY" "$HOME/Desktop/$(basename "$DATA_SOURCE_DIRECTORY")" >&19 2>&19 || \
 	    warn "Could not create link to $DATA_SOURCE_DIRECTORY on the Desktop"
 	for i in $(seq -w 1 30); do
-	    mkdir -pv "$DATA_SOURCE_DIRECTORY/FlightNumber_$i" -m 755   >&19 2>&19
-	    chown "$SUDO_USER" "$DATA_SOURCE_DIRECTORY/FlightNumber_$i" >&19 2>&19
+	    mkdir -pv "$DATA_SOURCE_DIRECTORY/FlightNumber_$i" -m 755 >&19 2>&19
 	done
 	;;
 esac
@@ -255,11 +241,11 @@ echo "Finishing data source $DATA_SOURCE_NAME registration with $CENTRAL_MANAGER
 # https://github.com/HTPhenotyping/registration/blob/master/register.py
 register_url="https://raw.githubusercontent.com/HTPhenotyping/registration/master/register.py"
 register_path="/usr/sbin/register.py"
-wget "$register_url" -O "$register_path" >&19 2>&19 || fail "Could not download register.py"
-chmod u+x "$register_path" || fail "Could not set permissions on register.py"
+$SUDO wget "$register_url" -O "$register_path" >&19 2>&19 || fail "Could not download register.py"
+$SUDO chmod u+x "$register_path" || fail "Could not set permissions on register.py"
 regcmd="register.py --pool=$CENTRAL_MANAGER --source=$DATA_SOURCE_NAME"
-$regcmd && {
-    condor_status -limit 1 >&19 2>&19 || {
+$SUDO $regcmd && {
+    $SUDO condor_status -limit 1 >&19 2>&19 || {
 	warn "Registration completed, but the machine could not talk to the central manager"
 	echo "Please email the HTPhenotyping service providers with your data source name ($DATA_SOURCE_NAME)" 1>&2
 	echo "and let them know about this message. If possible, include the contents of $LOGFILE" 1>&2
@@ -267,7 +253,7 @@ $regcmd && {
 } || {
     warn "Could not finish registration at this time."
     echo "You can retry registration at a later time by running:" 1>&2
-    echo "  sudo $regcmd" 1>&2
+    echo "  $SUDO $regcmd" 1>&2
 }
 
 echo
