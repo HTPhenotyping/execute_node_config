@@ -8,7 +8,7 @@
 # many packages and modifies system configuration.
 
 usage() {
-    echo "Usage: $0 -c <Central Manager Hostname> -d <Data Source Directory> -n <Data Source Name>" 1>&2
+    echo "Usage: $0 -c <Central Manager Hostname> -d <Data Source Directory> -n <Data Source Name> -p <Project Name>" 1>&2
     exit 1
 }
 
@@ -66,14 +66,14 @@ if [[ -z "$PROJECT" ]]; then
     PROJECT="$DEFAULT_PROJECT"
 fi
 
-DEFAULT_CENTRAL_MANAGER="htpheno-cm.chtc.wisc.edu"
-
 case "$PROJECT" in
     'drone')
-	DEFAULT_DATA_SOURCE_DIRECTORY="$(readlink -f "$HOME/${PROJECT}_data")"
+	DEFAULT_CENTRAL_MANAGER="htpheno-cm.chtc.wisc.edu"
+	DEFAULT_DATA_SOURCE_DIRECTORY="$(readlink -m "$HOME/${PROJECT}_data")"
 	;;
     *)
-	DEFAULT_DATA_SOURCE_DIRECTORY="$(readlink -f "$HOME/data")"
+	DEFAULT_CENTRAL_MANAGER="htpheno-cm.chtc.wisc.edu"
+	DEFAULT_DATA_SOURCE_DIRECTORY="$(readlink -m "$HOME/data")"
 	;;
 esac
 
@@ -82,12 +82,15 @@ if [[ -f "$DEFAULTS_FILE" ]]; then
     source "$DEFAULTS_FILE"
 fi
 
-echo
-echo "Respond to the following prompts following the installation page and using"
-echo "  the data you entered during registration."
-echo
-echo "Leave responses empty to accept the [default value] in square brackets."
-echo
+# If input is needed, let the user know that they can accept defaults
+if [[ -z "$CENTRAL_MANAGER" || -z "$DATA_SOURCE_NAME" || -z "$DATA_SOURCE_DIRECTORY" ]]; then
+    echo
+    echo "Respond to the following prompts following the installation page and using"
+    echo "  the data you entered during registration."
+    echo
+    echo "Leave responses empty to accept the [default value] in square brackets."
+    echo
+fi
 
 # Check for central manager
 while [[ -z "$CENTRAL_MANAGER" ]]; do
@@ -128,7 +131,7 @@ if [[ ! "$DATA_SOURCE_DIRECTORY" =~ ^/ ]]; then
     echo "The data source directory must be the full path, starting with /" 1>&2
     exit 1
 fi
-REAL_DIR=$(readlink -f "$DATA_SOURCE_DIRECTORY")
+REAL_DIR=$(readlink -m "$DATA_SOURCE_DIRECTORY")
 if [[ ! "$DATA_SOURCE_DIRECTORY" == "$REAL_DIR" ]]; then
     warn "$DATA_SOURCE_DIRECTORY is actually $REAL_DIR"
     warn "Will enforce permissions on $REAL_DIR"
@@ -223,20 +226,16 @@ $SUDO chmod o+xr "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on 
 $SUDO find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod o+rx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
 $SUDO find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod o+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
 
-# Postprocessing
-case "$PROJECT" in
-    'drone') # Create a symlink to the data source directory on the desktop and create intiial flight number directories
-	echo "Creating a link to $DATA_SOURCE_DIRECTORY on the Desktop..."
-	ln -sf "$DATA_SOURCE_DIRECTORY" "$HOME/Desktop/$(basename "$DATA_SOURCE_DIRECTORY")" >&19 2>&19 || \
-	    warn "Could not create link to $DATA_SOURCE_DIRECTORY on the Desktop"
-	for i in $(seq -w 1 30); do
-	    mkdir -pv "$DATA_SOURCE_DIRECTORY/FlightNumber_$i" -m 755 >&19 2>&19
-	done
-	;;
-esac
+# Create a symlink to the data source directory on the Desktop
+if [[ -d "$HOME/Desktop" ]]; then
+    echo "Creating a link to $DATA_SOURCE_DIRECTORY on the Desktop..."
+    ln -sfT "$DATA_SOURCE_DIRECTORY" "$HOME/Desktop/$(basename "$DATA_SOURCE_DIRECTORY")" >&19 2>&19 || \
+	warn "Could not create link to $DATA_SOURCE_DIRECTORY on the Desktop"
+fi
 
 echo
 echo "Finishing data source $DATA_SOURCE_NAME registration with $CENTRAL_MANAGER..."
+echo
 # Using register.py from master:
 # https://github.com/HTPhenotyping/registration/blob/master/register.py
 register_url="https://raw.githubusercontent.com/HTPhenotyping/registration/master/register.py"
@@ -246,11 +245,13 @@ $SUDO chmod u+x "$register_path" || fail "Could not set permissions on register.
 regcmd="register.py --pool=$CENTRAL_MANAGER --source=$DATA_SOURCE_NAME"
 $SUDO $regcmd && {
     $SUDO condor_status -limit 1 >&19 2>&19 || {
+	echo
 	warn "Registration completed, but the machine could not talk to the central manager"
 	echo "Please email the HTPhenotyping service providers with your data source name ($DATA_SOURCE_NAME)" 1>&2
 	echo "and let them know about this message. If possible, include the contents of $LOGFILE" 1>&2
     }
 } || {
+    echo
     warn "Could not finish registration at this time."
     echo "You can retry registration at a later time by running:" 1>&2
     echo "  $SUDO $regcmd" 1>&2
@@ -259,3 +260,4 @@ $SUDO $regcmd && {
 echo
 echo "Done. A log file was saved to $LOGFILE"
 echo "This log file can be safely deleted once HTCondor is confirmed working."
+echo
