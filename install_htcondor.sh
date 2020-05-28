@@ -229,7 +229,7 @@ $SUDO find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod o+r "{}" \; || fail "Cou
 # Create a symlink to the data source directory on the Desktop
 if [[ -d "$HOME/Desktop" ]]; then
     echo "Creating a link to $DATA_SOURCE_DIRECTORY on the Desktop..."
-    ln -sf "$DATA_SOURCE_DIRECTORY" "$HOME/Desktop/$(basename "$DATA_SOURCE_DIRECTORY")" >&19 2>&19 || \
+    ln -sfT "$DATA_SOURCE_DIRECTORY" "$HOME/Desktop/$(basename "$DATA_SOURCE_DIRECTORY")" >&19 2>&19 || \
 	warn "Could not create link to $DATA_SOURCE_DIRECTORY on the Desktop"
 fi
 
