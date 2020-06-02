@@ -8,7 +8,7 @@
 # many packages and modifies system configuration.
 
 usage() {
-    echo "Usage: $0 -c <Central Manager Hostname> -d <Data Source Directory> -n <Data Source Name> -p <Project Name>" 1>&2
+    echo "Usage: $0 -c <Central Manager Hostname> -d <Data Source Directory> -n <Data Source Name> -u <Slot User> -p <Project Name>" 1>&2
     exit 1
 }
 
@@ -40,6 +40,9 @@ while getopts "c:d:n:" OPTION; do
 	p)
 	    PROJECT="$OPTARG"
 	    ;;
+	u)
+	    SLOTUSER="$OPTARG"
+	    ;;
 	\?)
 	    usage
 	    ;;
@@ -70,10 +73,12 @@ case "$PROJECT" in
     'drone')
 	DEFAULT_CENTRAL_MANAGER="htpheno-cm.chtc.wisc.edu"
 	DEFAULT_DATA_SOURCE_DIRECTORY="$(readlink -m "$HOME/${PROJECT}_data")"
+	DEFAULT_SLOTUSER="$USER"
 	;;
     *)
 	DEFAULT_CENTRAL_MANAGER="htpheno-cm.chtc.wisc.edu"
 	DEFAULT_DATA_SOURCE_DIRECTORY="$(readlink -m "$HOME/data")"
+	DEFAULT_SLOTUSER="$USER"
 	;;
 esac
 
@@ -83,10 +88,9 @@ if [[ -f "$DEFAULTS_FILE" ]]; then
 fi
 
 # If input is needed, let the user know that they can accept defaults
-if [[ -z "$CENTRAL_MANAGER" || -z "$DATA_SOURCE_NAME" || -z "$DATA_SOURCE_DIRECTORY" ]]; then
+if [[ -z "$CENTRAL_MANAGER" || -z "$DATA_SOURCE_NAME" || -z "$SLOTUSER" || -z "$DATA_SOURCE_DIRECTORY" ]]; then
     echo
-    echo "Respond to the following prompts following the installation page and using"
-    echo "  the data you entered during registration."
+    echo "Respond to the following prompts following the installation page"
     echo
     echo "Leave responses empty to accept the [default value] in square brackets."
     echo
@@ -117,6 +121,24 @@ if [[ ! "$DATA_SOURCE_NAME" =~ ^[A-Za-z0-9_]+$ ]]; then
     exit 1
 fi
 echo "DEFAULT_DATA_SOURCE_NAME=\"$DATA_SOURCE_NAME\"" >> $DEFAULTS_FILE
+
+# Check for slot user
+while [[ -z "$SLOTUSER" ]]; do
+    read -p "User that transfer jobs should run as [$DEFAULT_SLOTUSER]: " SLOTUSER
+    [[ -z "$SLOTUSER" ]] && [[ ! -z "$DEFAULT_SLOTUSER" ]] && \
+	SLOTUSER="$DEFAULT_SLOTUSER"
+done
+if [[ "$SLOTUSER" == "root" ]]; do
+    fail_noexit "Transfer jobs cannot run as root"
+    echo "Please check your input and try again" 1>&2
+    exit 1
+fi
+id -u "$SLOTUSER" >&19 2>&19 || (
+    fail_noexit "User $SLOTUSER does not exist"
+    echo "Please check your input and try again" 1>&2
+    exit 1
+)
+echo "DEFAULT_SLOTUSER=\"$SLOTUSER\"" >> $DEFAULTS_FILE
 
 # Check for data source directory
 while [[ -z "$DATA_SOURCE_DIRECTORY" ]]; do
@@ -201,6 +223,7 @@ pushd "$tmp_dir" >&19 2>&19 && (
     sed -i "s/changeme/$DATA_SOURCE_NAME/"      execute_node_config/config.d/20-UniqueName
     sed -i "s/changeme/$USER/"                  execute_node_config/config.d/21-InstallUser
     sed -i "s|changeme|$DATA_SOURCE_DIRECTORY|" execute_node_config/config.d/22-DataDir
+    sed -i "s/nobody/$SLOTUSER/"                execute_node_config/config.d/23-SlotUser
     $SUDO mv execute_node_config/config.d/* /etc/condor/config.d/ || fail "Could not install config files from $tmp_dir"
 )
 popd >&19 2>&19
@@ -221,10 +244,34 @@ pidof systemd >&19 2>&19 && {
     $SUDO condor_master >&19 2>&19 || fail "Could not start condor_master"
 }
 
-echo "Setting permissions on $DATA_SOURCE_DIRECTORY to be readable by HTCondor..."
-$SUDO chmod o+xr "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY"
-$SUDO find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod o+rx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
-$SUDO find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod o+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
+if [[ "$USER" == "root" && "$SLOTUSER" != "nobody" ]]; then
+    echo "Setting permissions on $DATA_SOURCE_DIRECTORY to be readable and writable by HTCondor..."
+    chown -Rc "$SLOTUSER" "$DATA_SOURCE_DIRECTORY" >&19 2>&19 || fail "Could not set $SLOTUSER ownership on $DATA_SOURCE_DIRECTORY"
+    chmod u+rwx "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY"
+    find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod u+rwx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
+    find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod u+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
+
+elif [[ "$USER" != "$SLOTUSER" && "$SLOTUSER" != "nobody" ]]; then
+    echo "Setting permissions on $DATA_SOURCE_DIRECTORY to be readable and writable by HTCondor..."
+    # Add both the current user and slotuser to the same group
+    SHARED_GROUP="xferusers"
+    $SUDO groupadd -f "$SHARED_GROUP" || fail "Could not create group $SHARED_GROUP"
+    $SUDO usermod -a -G "$SHARED_GROUP" "$USER" || fail "Could not add $USER to $SHARED_GROUP group"
+    $SUDO usermod -a -G "$SHARED_GROUP" "$SLOTUSER" || fail "Could not add $SLOTUSER to $SHARED_GROUP group"
+
+    # Set group permissions on data source directory
+    chgrp -Rc "$SHARED_GROUP" "$DATA_SOURCE_DIRECTORY" >&19 2>&19 || fail "Could not set $SHARED_GROUP group ownership on $DATA_SOURCE_DIRECTORY"
+    chmod g+srwx "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY"
+    find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod g+srwx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
+    find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod g+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
+
+elif [[ "$SLOTUSER" == "nobody" ]]; then
+    echo "Setting permissions on $DATA_SOURCE_DIRECTORY to be read-only by HTCondor..."
+    # Set other permissions on data source directory
+    chmod o+xr "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY"
+    find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod o+rx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
+    find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod o+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
+fi
 
 # Create a symlink to the data source directory on the Desktop
 if [[ -d "$HOME/Desktop" ]]; then
