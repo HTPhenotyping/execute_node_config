@@ -260,10 +260,11 @@ elif [[ "$USER" != "$SLOTUSER" && "$SLOTUSER" != "nobody" ]]; then
     $SUDO usermod -a -G "$SHARED_GROUP" "$SLOTUSER" || fail "Could not add $SLOTUSER to $SHARED_GROUP group"
 
     # Set group permissions on data source directory
-    chgrp -Rc "$SHARED_GROUP" "$DATA_SOURCE_DIRECTORY" >&19 2>&19 || fail "Could not set $SHARED_GROUP group ownership on $DATA_SOURCE_DIRECTORY"
-    chmod g+srwx "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY"
-    find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod g+srwx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
-    find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod g+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
+    # (using sudo because don't want to logout/login for new group)
+    $SUDO chgrp -Rc "$SHARED_GROUP" "$DATA_SOURCE_DIRECTORY" >&19 2>&19 || fail "Could not set $SHARED_GROUP group ownership on $DATA_SOURCE_DIRECTORY"
+    $SUDO chmod g+srwx "$DATA_SOURCE_DIRECTORY" || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY"
+    $SUDO find "$DATA_SOURCE_DIRECTORY" -type d -exec chmod g+srwx "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY subdirectories"
+    $SUDO find "$DATA_SOURCE_DIRECTORY" -type f -exec chmod g+r "{}" \; || fail "Could not set permissions on $DATA_SOURCE_DIRECTORY files"
 
 elif [[ "$SLOTUSER" == "nobody" ]]; then
     echo "Setting permissions on $DATA_SOURCE_DIRECTORY to be read-only by HTCondor..."
