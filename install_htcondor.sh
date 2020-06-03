@@ -26,7 +26,7 @@ warn() {
     echo "WARNING:     $*" 1>&2
 }
 
-while getopts "c:d:n:" OPTION; do
+while getopts "c:d:n:u:" OPTION; do
     case "$OPTION" in
 	c)
 	    CENTRAL_MANAGER="$OPTARG"
