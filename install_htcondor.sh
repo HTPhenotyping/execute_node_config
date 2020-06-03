@@ -128,7 +128,7 @@ while [[ -z "$SLOTUSER" ]]; do
     [[ -z "$SLOTUSER" ]] && [[ ! -z "$DEFAULT_SLOTUSER" ]] && \
 	SLOTUSER="$DEFAULT_SLOTUSER"
 done
-if [[ "$SLOTUSER" == "root" ]]; do
+if [[ "$SLOTUSER" == "root" ]]; then
     fail_noexit "Transfer jobs cannot run as root"
     echo "Please check your input and try again" 1>&2
     exit 1
