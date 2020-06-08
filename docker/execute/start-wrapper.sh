@@ -1,8 +1,5 @@
 #!/bin/bash
 
-prog=${0##*/}
-progdir=${0%/*}
-
 usage() {
     echo "Usage: $0 -c <Central Manager Hostname> -n <Data Source Name>" 1>&2
     exit 1
@@ -61,24 +58,26 @@ if [[ ! "$DATA_SOURCE_NAME" =~ ^[A-Za-z0-9_]+$ ]]; then
     fail "The data source name may only contain alphanumeric characters and underscores"
 fi
 
+# Update config
 sed -i "s/changeme/$CENTRAL_MANAGER/"  /etc/condor/config.d/10-CentralManager
 sed -i "s/changeme/$DATA_SOURCE_NAME/" /etc/condor/config.d/20-UniqueName
 
-echo
-echo "Finishing data source $DATA_SOURCE_NAME registration with $CENTRAL_MANAGER..."
-echo
-# Using register.py from master:
-# https://github.com/HTPhenotyping/registration/blob/master/register.py
-register_url="https://raw.githubusercontent.com/HTPhenotyping/registration/master/register.py"
-register_path="/usr/sbin/register.py"
-wget "$register_url" -O "$register_path" || fail "Could not download register.py"
-chmod u+x "$register_path" || fail "Could not set permissions on register.py"
-register.py --pool="$CENTRAL_MANAGER" --source="$DATA_SOURCE_NAME" && {
-    condor_status -limit 1 || {
-	echo
-	fail "Registration completed, but the machine could not talk to the central manager"
-    }
-} || fail "Could not register with $CENTRAL_MANAGER"
+# Check for valid token by doing a condor_status with only IDTOKENS
+_CONDOR_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS condor_status -limit 1 >/dev/null 2>&1 || {
+    # Request token if condor_status fails
+    echo
+    echo "Finishing registration of $DATA_SOURCE_NAME with $CENTRAL_MANAGER..."
+    echo
+    register_url="https://raw.githubusercontent.com/HTPhenotyping/registration/master/register.py"
+    register_path="/register.py"
+    wget "$register_url" -O "$register_path" >/dev/null 2>&1 || fail "Could not download register.py"
+    chmod u+x "$register_path" || fail "Could not set permissions on register.py"
+    $register_path --pool="$CENTRAL_MANAGER" --source="$DATA_SOURCE_NAME" && {
+	_CONDOR_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS condor_status -limit 1 >/dev/null 2>&1 || {
+	    fail "Registration completed, but the machine could not authenticate with $CENTRAL_MANAGER"
+	}
+    } || fail "Could not register with $CENTRAL_MANAGER"
+}
 
 # run start.sh
-CONDOR_HOST=$CENTRAL_MANAGER /bin/bash -x /start.sh
+CONDOR_HOST="$CENTRAL_MANAGER" /bin/bash /start.sh
