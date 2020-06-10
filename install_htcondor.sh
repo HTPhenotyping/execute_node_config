@@ -69,6 +69,7 @@ while getopts "c:d:n:p:u:x:" OPTION; do
 		DOCKER="false"
 	    else
 		DOCKER="true"
+	    fi
 	    ;;
 	\?)
 	    usage
