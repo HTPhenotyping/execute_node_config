@@ -7,6 +7,3 @@ ALLOW_DAEMON = $(ALLOW_WRITE)
 SEC_DEFAULT_AUTHENTICATION_METHODS = FS, TOKEN, SSL
 SEC_CLIENT_AUTHENTICATION_METHODS = TOKEN, FS, SSL
 
-# Fixes for SSL on Debian-based distros
-AUTH_SSL_SERVER_CAFILE   = /etc/ssl/certs/ca-certificates.crt
-AUTH_SSL_CLIENT_CAFILE   = /etc/ssl/certs/ca-certificates.crt
