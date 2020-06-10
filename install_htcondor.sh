@@ -62,7 +62,7 @@ while getopts "c:d:n:p:u:x:" OPTION; do
             SLOTUSER="$OPTARG"
             ;;
         x)
-            EXEC_METHOD=$(echo "$OPTARG" | tr '[:upper:]' '[:lower:]')
+            EXEC_METHOD="$(echo "$OPTARG" | tr '[:upper:]' '[:lower:]')"
             if [[ ! "$EXEC_METHOD" == "docker" || ! "$EXEC_METHOD" == "native" ]]; then
                 usage
             elif [[ "$EXEC_METHOD" == "native" ]]; then
@@ -177,11 +177,11 @@ if [[ "$DOCKER" == "false" ]]; then
         echo "Please check your input and try again" 1>&2
         exit 1
     fi
-    id -u "$SLOTUSER" >/dev/null 2>&1 || (
+    id -u "$SLOTUSER" >/dev/null 2>&1 || {
         fail_noexit "User $SLOTUSER does not exist"
         echo "Please check your input and try again" 1>&2
         exit 1
-    )
+    }
     echo "DEFAULT_SLOTUSER=\"$SLOTUSER\"" >> $DEFAULTS_FILE
 fi
 
@@ -249,23 +249,23 @@ if [[ "$DOCKER" == "true" ]]; then
     if [[ ! -d "$APPDATA/config.d" ]]; then
         echo "Downloading, modifying, and installing HTCondor configuration..."
         tmp_dir="/tmp/install_htcondor-$$"
-        config_repo="https://github.com/HTPhenotyping/execute_node_config"
+        config_repo="https://github.com/HTPhenotyping/execute_node_config.git"
         mkdir -p "$tmp_dir" || fail "Could not create temporary directory $tmp_dir"
         mkdir -p "$APPDATA/config.d" || fail "Could not create $APPDATA/config.d"
-        if $MACOS; then
+        if [[ "$MACOS" == "true" ]]; then
             inplace_sed="sed -i ''"
         else
             inplace_sed="sed -i"
         fi
-        pushd "$tmp_dir" >/dev/null && (
-            git clone $config_repo >/dev/null || fail "Could not clone git repo $config_repo"
+        pushd "$tmp_dir" >/dev/null && {
+            git clone $config_repo >/dev/null 2>&1 || fail "Could not clone git repo $config_repo"
             $inplace_sed "s/changeme/$CENTRAL_MANAGER/"  execute_node_config/config.d/10-CentralManager
             $inplace_sed "s/changeme/$DATA_SOURCE_NAME/" execute_node_config/config.d/20-UniqueName
             $inplace_sed "s/changeme/docker/"            execute_node_config/config.d/21-InstallUser
             $inplace_sed "s|changeme|/mnt/data|"         execute_node_config/config.d/22-DataDir
             $inplace_sed "s/nobody/slot1/"               execute_node_config/config.d/23-SlotUser
             mv "execute_node_config/config.d/*" "$APPDATA/config.d/" || fail "Could not install config files from $tmp_dir"
-        )
+        }
         popd >/dev/null
         echo "ENABLE_KERNEL_TUNING=False" > "$APPDATA/config.d/01-Docker"
         rm -rf "$tmp_dir" 2>/dev/null || warn "Could not remove temporary directory $tmp_dir"
@@ -311,10 +311,10 @@ else
 
     echo "Adding the HTCondor $HTCONDOR_VERSION Ubuntu $UBUNTU_CODENAME repository to apt's sources list..."
     wget -O - "$key_url" 2>&19 | $SUDO apt-key add - >&19 2>&19 || fail "Could not add key from $key_url"
-    grep "$deb_url" /etc/apt/sources.list >&19 2>&19 || (
+    grep "$deb_url" /etc/apt/sources.list >&19 2>&19 || {
         echo "deb $deb_url $UBUNTU_CODENAME contrib" | $SUDO tee -a /etc/apt/sources.list > /dev/null
         echo "deb-src $deb_url $UBUNTU_CODENAME contrib" | $SUDO tee -a /etc/apt/sources.list > /dev/null
-    )
+    }
 
     echo "Updating apt's list of packages..."
     DEBIAN_FRONTEND=noninteractive $SUDO apt-get -y update >&19 2>&19 || fail "Could not update packages"
@@ -324,9 +324,9 @@ else
 
     echo "Downloading, modifying, and installing HTCondor configuration..."
     tmp_dir="/tmp/install_htcondor-$$"
-    config_repo="https://github.com/HTPhenotyping/execute_node_config"
+    config_repo="https://github.com/HTPhenotyping/execute_node_config.git"
     mkdir -p "$tmp_dir" || fail "Could not create temporary directory $tmp_dir"
-    pushd "$tmp_dir" >&19 2>&19 && (
+    pushd "$tmp_dir" >&19 2>&19 && {
         git clone $config_repo >&19 2>&19 || fail "Could not clone git repo $config_repo"
         sed -i "s/changeme/$CENTRAL_MANAGER/"       execute_node_config/config.d/10-CentralManager
         sed -i "s/changeme/$DATA_SOURCE_NAME/"      execute_node_config/config.d/20-UniqueName
@@ -338,7 +338,7 @@ else
         echo 'AUTH_SSL_SERVER_CAFILE = /etc/ssl/certs/ca-certificates.crt' >> execute_node_config/config.d/50-Security
         echo 'AUTH_SSL_CLIENT_CAFILE = /etc/ssl/certs/ca-certificates.crt' >> execute_node_config/config.d/50-Security
         $SUDO mv execute_node_config/config.d/* /etc/condor/config.d/ || fail "Could not install config files from $tmp_dir"
-    )
+    }
     popd >&19 2>&19
 
     $SUDO mkdir -p /etc/condor/{tokens.d,passwords.d}  >&19 2>&19 || fail "Could not create tokens.d and/or passwords.d"
