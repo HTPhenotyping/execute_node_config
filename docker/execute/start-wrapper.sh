@@ -16,8 +16,10 @@ for key in CONDOR_HOST UniqueName; do
     [[ "$value" == "changeme" || "$value" == '"changeme"' ]] && \
 	fail "HTCondor config key $key must changed from the default value"
 done
-CENTRAL_MANAGER=$(condor_config_val CONDOR_HOST)
-DATA_SOURCE_NAME=$(condor_config_val UniqueName)
+
+# Grab central manager and data source names, stripping quotes
+CENTRAL_MANAGER="$(condor_config_val CONDOR_HOST | sed -e 's/^"//' -e 's/"$//')"
+DATA_SOURCE_NAME="$(condor_config_val UniqueName | sed -e 's/^"//' -e 's/"$//')"
 
 # Check for valid token by doing a condor_status with only IDTOKENS
 _CONDOR_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS condor_status -limit 1 >/dev/null 2>&1 || {
