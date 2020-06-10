@@ -77,6 +77,10 @@ while getopts "c:d:n:p:u:x:" OPTION; do
     esac
 done
 
+# Use Docker by default
+: "${DOCKER:=true}"
+
+# No native install on macOS
 [[ "$MACOS" == "true" && "$DOCKER" == "false" ]] && \
     fail "Docker Exec Method must be used on macOS"
 
