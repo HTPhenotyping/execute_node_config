@@ -264,7 +264,7 @@ if [[ "$DOCKER" == "true" ]]; then
             $inplace_sed "s/changeme/docker/"            execute_node_config/config.d/21-InstallUser
             $inplace_sed "s|changeme|/mnt/data|"         execute_node_config/config.d/22-DataDir
             $inplace_sed "s/nobody/slot1/"               execute_node_config/config.d/23-SlotUser
-            mv "execute_node_config/config.d/*" "$APPDATA/config.d/" || fail "Could not install config files from $tmp_dir"
+            mv "execute_node_config/config.d/"* "$APPDATA/config.d/" || fail "Could not install config files from $tmp_dir"
         }
         popd >/dev/null
         echo "ENABLE_KERNEL_TUNING=False" > "$APPDATA/config.d/01-Docker"
@@ -337,7 +337,7 @@ else
         echo '# Fixes for SSL on Debian-based distros'                     >> execute_node_config/config.d/50-Security
         echo 'AUTH_SSL_SERVER_CAFILE = /etc/ssl/certs/ca-certificates.crt' >> execute_node_config/config.d/50-Security
         echo 'AUTH_SSL_CLIENT_CAFILE = /etc/ssl/certs/ca-certificates.crt' >> execute_node_config/config.d/50-Security
-        $SUDO mv execute_node_config/config.d/* /etc/condor/config.d/ || fail "Could not install config files from $tmp_dir"
+        $SUDO mv "execute_node_config/config.d/"* "/etc/condor/config.d/" || fail "Could not install config files from $tmp_dir"
     }
     popd >&19 2>&19
 
