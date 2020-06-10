@@ -32,7 +32,7 @@ done
 
 # Run docker
 echo "Running docker, serving data out of $DATA_SOURCE_DIRECTORY..."
-docker run -it \
+docker run --rm -it \
        --name htcondor \
        --mount type=bind,source="$DATA_SOURCE_DIRECTORY",target="/mnt/data" \
        --mount type=bind,source="$APPDATA/tokens.d",target="/etc/condor/tokens.d" \
