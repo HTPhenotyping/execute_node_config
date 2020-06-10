@@ -112,12 +112,12 @@ fi
 case "$PROJECT" in
     'G2FUAS')
         DEFAULT_CENTRAL_MANAGER="htpheno-cm.chtc.wisc.edu"
-        DEFAULT_DATA_SOURCE_DIRECTORY="$(readlink -m "$HOME/${PROJECT}_data")"
+        DEFAULT_DATA_SOURCE_DIRECTORY="$HOME/${PROJECT}_data"
         DEFAULT_SLOTUSER="${USER:-nobody}"
         ;;
     *)
         DEFAULT_CENTRAL_MANAGER="htpheno-cm.chtc.wisc.edu"
-        DEFAULT_DATA_SOURCE_DIRECTORY="$(readlink -m "$HOME/${PROJECT}_data")"
+        DEFAULT_DATA_SOURCE_DIRECTORY="$HOME/${PROJECT}_data"
         DEFAULT_SLOTUSER="${USER:-nobody}"
         ;;
 esac
