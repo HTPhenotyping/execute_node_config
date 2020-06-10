@@ -1,66 +1,23 @@
 #!/bin/bash
 
-usage() {
-    echo "Usage: $0 -c <Central Manager Hostname> -n <Data Source Name>" 1>&2
-    exit 1
-}
-
 fail() {
     echo "ERROR:    $*" 1>&2
     exit 1
 }
 
-while getopts "c:n:" OPTION; do
-    case "$OPTION" in
-	c)
-	        CENTRAL_MANAGER="$OPTARG"
-		    ;;
-	n)
-	        DATA_SOURCE_NAME="$OPTARG"
-		    ;;
-	\?)
-	        usage
-		    ;;
-    esac
-done
-
 if [ "$(id -u)" != "0" ]; then
     fail "Docker must be run with root privileges"
 fi
 
-DEFAULT_CENTRAL_MANAGER="htpheno-cm.chtc.wisc.edu"
-
-if [[ -z "$CENTRAL_MANAGER" || -z "$DATA_SOURCE_NAME" ]]; then
-    echo
-    echo "Respond to the following prompts following the installation page"
-    echo
-    echo "Leave responses empty to accept the [default value] in square brackets."
-    echo
-fi
-
-# Check for central manager
-while [[ -z "$CENTRAL_MANAGER" ]]; do
-    read -p "Central manager hostname [$DEFAULT_CENTRAL_MANAGER]: " CENTRAL_MANAGER
-    [[ -z "$CENTRAL_MANAGER" ]] && [[ ! -z "$DEFAULT_CENTRAL_MANAGER" ]] && \
-	CENTRAL_MANAGER="$DEFAULT_CENTRAL_MANAGER"
+# Check that the central manager and data source names have been set
+for key in CONDOR_HOST UniqueName; do
+    value="$(condor_config_val $key 2>/dev/null)" || \
+	fail "Did not find $key in the HTCondor config"
+    [[ "$value" == "changeme" || "$value" == '"changeme"' ]] && \
+	fail "HTCondor config key $key must changed from the default value"
 done
-if [[ ! "$CENTRAL_MANAGER" =~ ^[a-z0-9][a-z0-9.-]*$ ]]; then
-    fail "The central manager hostname must be a valid hostname"
-fi
-
-# Check for data source name
-while [[ -z "$DATA_SOURCE_NAME" ]]; do
-    read -p "Preferred data source name [$DEFAULT_DATA_SOURCE_NAME]: " DATA_SOURCE_NAME
-    [[ -z "$DATA_SOURCE_NAME" ]] && [[ ! -z "$DEFAULT_DATA_SOURCE_NAME" ]] && \
-	DATA_SOURCE_NAME="$DEFAULT_DATA_SOURCE_NAME"
-done
-if [[ ! "$DATA_SOURCE_NAME" =~ ^[A-Za-z0-9_]+$ ]]; then
-    fail "The data source name may only contain alphanumeric characters and underscores"
-fi
-
-# Update config
-sed -i "s/changeme/$CENTRAL_MANAGER/"  /etc/condor/config.d/10-CentralManager
-sed -i "s/changeme/$DATA_SOURCE_NAME/" /etc/condor/config.d/20-UniqueName
+CENTRAL_MANAGER=$(condor_config_val CONDOR_HOST)
+DATA_SOURCE_NAME=$(condor_config_val UniqueName)
 
 # Check for valid token by doing a condor_status with only IDTOKENS
 _CONDOR_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS condor_status -limit 1 >/dev/null 2>&1 || {
