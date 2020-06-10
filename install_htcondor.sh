@@ -252,19 +252,15 @@ if [[ "$DOCKER" == "true" ]]; then
         config_repo="https://github.com/HTPhenotyping/execute_node_config.git"
         mkdir -p "$tmp_dir" || fail "Could not create temporary directory $tmp_dir"
         mkdir -p "$APPDATA/config.d" || fail "Could not create $APPDATA/config.d"
-        if [[ "$MACOS" == "true" ]]; then
-            inplace_sed="sed -i ''"
-        else
-            inplace_sed="sed -i"
-        fi
         pushd "$tmp_dir" >/dev/null && {
             git clone $config_repo >/dev/null 2>&1 || fail "Could not clone git repo $config_repo"
-            $inplace_sed "s/changeme/$CENTRAL_MANAGER/"  execute_node_config/config.d/10-CentralManager
-            $inplace_sed "s/changeme/$DATA_SOURCE_NAME/" execute_node_config/config.d/20-UniqueName
-            $inplace_sed "s/changeme/docker/"            execute_node_config/config.d/21-InstallUser
-            $inplace_sed "s|changeme|/mnt/data|"         execute_node_config/config.d/22-DataDir
-            $inplace_sed "s/nobody/slot1/"               execute_node_config/config.d/23-SlotUser
-            mv "execute_node_config/config.d/"* "$APPDATA/config.d/" || fail "Could not install config files from $tmp_dir"
+            sed -i.bak "s/changeme/$CENTRAL_MANAGER/"  execute_node_config/config.d/10-CentralManager
+            sed -i.bak "s/changeme/$DATA_SOURCE_NAME/" execute_node_config/config.d/20-UniqueName
+            sed -i.bak "s/changeme/docker/"            execute_node_config/config.d/21-InstallUser
+            sed -i.bak "s|changeme|/mnt/data|"         execute_node_config/config.d/22-DataDir
+            sed -i.bak "s/nobody/slot1/"               execute_node_config/config.d/23-SlotUser
+	    rm -f execute_node_config/config.d/*.bak
+            mv execute_node_config/config.d/* "$APPDATA/config.d/" || fail "Could not install config files from $tmp_dir"
         }
         popd >/dev/null
         echo "ENABLE_KERNEL_TUNING=False" > "$APPDATA/config.d/01-Docker"
@@ -337,7 +333,7 @@ else
         echo '# Fixes for SSL on Debian-based distros'                     >> execute_node_config/config.d/50-Security
         echo 'AUTH_SSL_SERVER_CAFILE = /etc/ssl/certs/ca-certificates.crt' >> execute_node_config/config.d/50-Security
         echo 'AUTH_SSL_CLIENT_CAFILE = /etc/ssl/certs/ca-certificates.crt' >> execute_node_config/config.d/50-Security
-        $SUDO mv "execute_node_config/config.d/"* "/etc/condor/config.d/" || fail "Could not install config files from $tmp_dir"
+        $SUDO mv execute_node_config/config.d/* /etc/condor/config.d/ || fail "Could not install config files from $tmp_dir"
     }
     popd >&19 2>&19
 

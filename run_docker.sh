@@ -31,7 +31,10 @@ for reqdir in config.d tokens.d; do
 done
 
 # Run docker
-echo "Running docker, serving data out of $DATA_SOURCE_DIRECTORY..."
+echo 
+echo "Running HTCondor on Docker, serving data out of $DATA_SOURCE_DIRECTORY..."
+echo "To stop HTCondor at any time, hit Ctrl+C (or Control+C)"
+echo
 docker run --rm -it \
        --name htcondor \
        --mount type=bind,source="$DATA_SOURCE_DIRECTORY",target="/mnt/data" \
