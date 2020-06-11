@@ -243,37 +243,9 @@ if [[ -d "$HOME/Desktop" && ! -e "$HOME/Desktop/$(basename "$DATA_SOURCE_DIRECTO
 fi
 
 if [[ "$DOCKER" == "true" ]]; then
-    # Set up and run the Docker image
 
-    # Set up the config.d directory
-    if [[ ! -d "$APPDATA/config.d" ]]; then
-        echo "Downloading, modifying, and installing HTCondor configuration..."
-        tmp_dir="/tmp/install_htcondor-$$"
-        config_repo="https://github.com/HTPhenotyping/execute_node_config.git"
-        mkdir -p "$tmp_dir" || fail "Could not create temporary directory $tmp_dir"
-        mkdir -p "$APPDATA/config.d" || fail "Could not create $APPDATA/config.d"
-        pushd "$tmp_dir" >/dev/null && {
-            git clone $config_repo >/dev/null 2>&1 || fail "Could not clone git repo $config_repo"
-            sed -i.bak "s/changeme/$CENTRAL_MANAGER/"  execute_node_config/config.d/10-CentralManager
-            sed -i.bak "s/changeme/$DATA_SOURCE_NAME/" execute_node_config/config.d/20-UniqueName
-            sed -i.bak "s/changeme/docker/"            execute_node_config/config.d/21-InstallUser
-            sed -i.bak "s|changeme|/mnt/data|"         execute_node_config/config.d/22-DataDir
-            sed -i.bak "s/nobody/slot1/"               execute_node_config/config.d/23-SlotUser
-	    rm -f execute_node_config/config.d/*.bak
-            mv execute_node_config/config.d/* "$APPDATA/config.d/" || fail "Could not install config files from $tmp_dir"
-        }
-        popd >/dev/null
-        echo "ENABLE_KERNEL_TUNING=False" > "$APPDATA/config.d/01-Docker"
-        rm -rf "$tmp_dir" 2>/dev/null || warn "Could not remove temporary directory $tmp_dir"
-    fi
-
-    # Set up the tokens.d directory
-    if [[ ! -d "$APPDATA/tokens.d" ]]; then
-        mkdir -p "$APPDATA/tokens.d" || fail "Could not create $APPDATA/tokens.d"
-    fi
-
-    # Run docker to finish setup
-    ./run_docker.sh
+    # Run Docker to finish setup
+    ./run_docker.sh -i -c "$CENTRAL_MANAGER" -n "$DATA_SOURCE_NAME"
 
 else
     # Run the native install
