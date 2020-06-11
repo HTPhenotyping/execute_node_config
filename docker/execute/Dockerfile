@@ -1,7 +1,7 @@
 FROM htcondor/execute:8.9.7-el7
 
-# install python3 for registration script
-RUN yum -y update && yum -y install python3-condor
+# install git for config download and python3 for registration script
+RUN yum -y update && yum -y install git python3-condor
 
 # remove existing config, will be bind mounted in
 RUN rm /etc/condor/config.d/*
