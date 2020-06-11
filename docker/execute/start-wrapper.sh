@@ -38,7 +38,7 @@ done
 # Check for required directories
 for reqdir in config.d tokens.d; do
     if [[ ! -d "/etc/condor/$reqdir" ]]; then
-        fail "Required directory $APPDATA/$reqdir does not exist"
+        fail "Required directory /etc/condor/$reqdir does not exist"
     fi
 done
 
@@ -56,10 +56,10 @@ if [[ "$RUN_INIT" == "true" ]]; then
         sed -i "s/changeme/docker/"            execute_node_config/config.d/21-InstallUser
         sed -i "s|changeme|/mnt/data|"         execute_node_config/config.d/22-DataDir
         sed -i "s/nobody/slot1/"               execute_node_config/config.d/23-SlotUser
-        mv execute_node_config/config.d/* "$APPDATA/config.d/" || fail "Could not install config files from $tmp_dir"
+        mv execute_node_config/config.d/* "/etc/condor/config.d/" || fail "Could not install config files from $tmp_dir"
     }
     popd >/dev/null
-    echo "ENABLE_KERNEL_TUNING=False" > "$APPDATA/config.d/01-Docker"
+    echo "ENABLE_KERNEL_TUNING=False" > "/etc/condor/config.d/01-Docker"
     rm -rf "$tmp_dir" 2>/dev/null || warn "Could not remove temporary directory $tmp_dir"
 
 fi
