@@ -244,6 +244,17 @@ fi
 
 if [[ "$DOCKER" == "true" ]]; then
 
+    # Set up persistent config.d and tokens.d directories
+    for reqdir in config.d tokens.d; do
+	if [[ ! -d "$APPDATA/$reqdir" ]]; then
+	    mkdir -p "$APPDATA/$reqdir" 2>/dev/null || {
+		fail_noexit "Could not create $APPDATA/$reqdir"
+		echo "Check that you have permission to create $APPDATA/$reqdir and try again" 1>&2
+		exit 1
+	    }
+	fi
+    done
+
     # Run Docker to finish setup
     ./run_docker.sh -i -c "$CENTRAL_MANAGER" -n "$DATA_SOURCE_NAME"
 
