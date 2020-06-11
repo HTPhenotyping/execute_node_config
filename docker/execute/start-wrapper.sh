@@ -77,7 +77,7 @@ CENTRAL_MANAGER="$(condor_config_val CONDOR_HOST | sed -e 's/^"//' -e 's/"$//')"
 DATA_SOURCE_NAME="$(condor_config_val UniqueName | sed -e 's/^"//' -e 's/"$//')"
 
 # Check for valid token by doing a condor_status with only IDTOKENS
-_CONDOR_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS condor_status -limit 1 >/dev/null 2>&1 || {
+_CONDOR_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS condor_status -pool "$CENTRAL_MANAGER" -limit 1 >/dev/null 2>&1 || {
     # Request token if condor_status fails
     if [[ "$RUN_INIT" == "true" ]]; then
         echo
@@ -95,7 +95,7 @@ _CONDOR_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS condor_status -limit 1 >/dev/
     wget "$register_url" -O "$register_path" >/dev/null 2>&1 || fail "Could not download register.py"
     chmod u+x "$register_path" || fail "Could not set permissions on register.py"
     $register_path --pool="$CENTRAL_MANAGER" --source="$DATA_SOURCE_NAME" && {
-        _CONDOR_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS condor_status -limit 1 >/dev/null 2>&1 || {
+        _CONDOR_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS condor_status -pool "$CENTRAL_MANAGER" -limit 1 >/dev/null 2>&1 || {
             fail "Registration completed, but the machine could not authenticate with $CENTRAL_MANAGER"
         }
     } || fail "Could not register with $CENTRAL_MANAGER"
