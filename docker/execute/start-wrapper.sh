@@ -37,7 +37,7 @@ done
 
 # Check for required directories
 for reqdir in config.d tokens.d; do
-    if [[ ! -d "$APPDATA/$reqdir" ]]; then
+    if [[ ! -d "/etc/condor/$reqdir" ]]; then
         fail "Required directory $APPDATA/$reqdir does not exist"
     fi
 done
