@@ -53,11 +53,12 @@ for reqdir in config.d tokens.d; do
 done
 
 # Run docker
+echo "Downloading latest version of HTCondor on Docker (if needed)..."
+docker pull -q htphenotyping/execute:8.9.7-el7 >/dev/null
 echo
 echo "Running HTCondor on Docker, serving data out of $DATA_SOURCE_DIRECTORY..."
 echo "To stop HTCondor on Docker at any time, hit Ctrl+C (or Control+C)"
 echo
-docker pull -q htphenotyping/execute:8.9.7-el7
 if [[ "$RUN_INIT" == "true" ]]; then
     docker run --rm -it \
            --name htcondor \
