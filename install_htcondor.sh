@@ -63,7 +63,7 @@ while getopts "c:d:n:p:u:x:" OPTION; do
             ;;
         x)
             EXEC_METHOD="$(echo "$OPTARG" | tr '[:upper:]' '[:lower:]')"
-            if [[ ! "$EXEC_METHOD" == "docker" || ! "$EXEC_METHOD" == "native" ]]; then
+            if [[ ! "$EXEC_METHOD" == "docker" && ! "$EXEC_METHOD" == "native" ]]; then
                 usage
             elif [[ "$EXEC_METHOD" == "native" ]]; then
                 DOCKER="false"
