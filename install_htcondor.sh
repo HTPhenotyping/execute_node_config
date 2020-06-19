@@ -77,8 +77,8 @@ while getopts "c:d:n:p:u:x:" OPTION; do
     esac
 done
 
-# Use Docker by default
-: "${DOCKER:=true}"
+# Don't use Docker by default
+: "${DOCKER:=false}"
 
 # No native install on macOS
 [[ "$MACOS" == "true" && "$DOCKER" == "false" ]] && \
