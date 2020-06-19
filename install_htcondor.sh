@@ -256,7 +256,14 @@ if [[ "$DOCKER" == "true" ]]; then
     done
 
     # Run Docker to finish setup
-    ./run_docker.sh -i -c "$CENTRAL_MANAGER" -n "$DATA_SOURCE_NAME"
+    if [[ ! -f run_htcondor_docker.sh ]]; then
+	run_htcondor_docker_url="https://raw.githubusercontent.com/HTPhenotyping/execute_node_config/master/run_htcondor_docker.sh"
+	wget $run_htcondor_docker_url >/dev/null 1>&2 || \
+	    curl -O $run_htcondor_docker_url >/dev/null 1>&2 || {
+	    fail_noexit "Could not download run_htcondor_docker.sh from $run_htcondor_docker_url"
+	    exit 1
+	}
+    bash run_htcondor_docker.sh -i -c "$CENTRAL_MANAGER" -n "$DATA_SOURCE_NAME"
 
 else
     # Run the native install
