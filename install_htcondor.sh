@@ -258,8 +258,8 @@ if [[ "$DOCKER" == "true" ]]; then
     # Run Docker to finish setup
     if [[ ! -f run_htcondor_docker.sh ]]; then
 	run_htcondor_docker_url="https://raw.githubusercontent.com/HTPhenotyping/execute_node_config/master/run_htcondor_docker.sh"
-	wget $run_htcondor_docker_url >/dev/null 1>&2 || \
-	    curl -O $run_htcondor_docker_url >/dev/null 1>&2 || {
+	wget $run_htcondor_docker_url >/dev/null 2>&1 || \
+	    curl -O $run_htcondor_docker_url >/dev/null 2>&1 || {
 	    fail_noexit "Could not download run_htcondor_docker.sh from $run_htcondor_docker_url"
 	    exit 1
 	}
