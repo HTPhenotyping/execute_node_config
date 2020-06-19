@@ -263,6 +263,7 @@ if [[ "$DOCKER" == "true" ]]; then
 	    fail_noexit "Could not download run_htcondor_docker.sh from $run_htcondor_docker_url"
 	    exit 1
 	}
+    fi
     bash run_htcondor_docker.sh -i -c "$CENTRAL_MANAGER" -n "$DATA_SOURCE_NAME"
 
 else
